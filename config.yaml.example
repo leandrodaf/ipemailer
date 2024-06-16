@@ -1,0 +1,12 @@
+email:
+  from: "your-email@mail.com"
+  password: "yourpassword"
+
+smtp:
+  host: "smtp.gmail.com"
+  port: "587"
+
+cron:
+  schedule: "0 6,12,18,0 * * *" # Executa às 6h, 12h, 18h, e 0h de todos os dias
+
+emails: "email1@example.com,email2@example.com,email3@example.com" # Lista de emails separados por vírgula
