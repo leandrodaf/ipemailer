@@ -3,15 +3,14 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/smtp"
-	"os"
 	"strings"
 
 	"github.com/aymerick/raymond"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	"github.com/spf13/viper"
 )
 
@@ -40,12 +39,13 @@ func initConfig(cfgFile, defaultCron, defaultEmails string) {
 	viper.SetDefault("emails", defaultEmails)
 
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Error reading config file, %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Error reading config file: %s", err)
 	}
 
 	viper.BindEnv("emails")
 	viper.BindEnv("cron.schedule")
+
+	log.Println("Config loaded successfully")
 }
 
 func getIPInfo() (IP, error) {
@@ -62,7 +62,12 @@ func getIPInfo() (IP, error) {
 	}
 
 	err = json.Unmarshal(body, &ip)
-	return ip, err
+	if err != nil {
+		return ip, err
+	}
+
+	log.Printf("Fetched IP information: %+v", ip)
+	return ip, nil
 }
 
 func renderTemplate(data IP) (string, error) {
@@ -77,9 +82,9 @@ func renderTemplate(data IP) (string, error) {
     <p><strong>Query:</strong> {{query}}</p>
     <p><strong>ISP:</strong> {{isp}}</p>
     <p><strong>Organization:</strong> {{org}}</p>
-    <p><strong>Country:</mark> {{country}} ({{countryCode}})</strong></p>
+    <p><strong>Country:</strong> {{country}} ({{countryCode}})</strong></p>
     <p><strong>Region:</strong> {{regionName}} ({{region}})</p>
-    <p><strong>City:</mark> {{city}}, {{zip}}</strong></p>
+    <p><strong>City:</strong> {{city}}, {{zip}}</strong></p>
     <p><strong>Latitude:</strong> {{lat}}</p>
     <p><strong>Longitude:</strong> {{lon}}</p>
     <p><strong>Timezone:</strong> {{timezone}}</p>
@@ -87,7 +92,13 @@ func renderTemplate(data IP) (string, error) {
 </body>
 </html>
 `
-	return raymond.Render(template, data)
+	result, err := raymond.Render(template, data)
+	if err != nil {
+		return "", err
+	}
+
+	log.Println("Template rendered successfully")
+	return result, nil
 }
 
 func sendEmail(body, to string) error {
@@ -108,33 +119,38 @@ func sendEmail(body, to string) error {
 
 	toList := strings.Split(to, ",")
 	err := smtp.SendMail(address, auth, from, toList, msg)
-	return err
+	if err != nil {
+		return err
+	}
+
+	log.Println("Email sent successfully")
+	return nil
 }
 
 func executeTask() {
-	fmt.Println("Fetching IP information and sending emails...")
+	log.Println("Fetching IP information and sending emails...")
 	emailList := viper.GetString("emails")
 	if emailList == "" {
-		fmt.Println("No email addresses provided")
+		log.Println("No email addresses provided")
 		return
 	}
 
 	ipInfo, err := getIPInfo()
 	if err != nil {
-		fmt.Println("Failed to get IP information:", err)
+		log.Printf("Failed to get IP information: %s", err)
 		return
 	}
 
 	body, err := renderTemplate(ipInfo)
 	if err != nil {
-		fmt.Println("Error rendering email template:", err)
+		log.Printf("Error rendering email template: %s", err)
 		return
 	}
 
 	if err := sendEmail(body, emailList); err != nil {
-		fmt.Println("Failed to send email:", err)
+		log.Printf("Failed to send email: %s", err)
 	} else {
-		fmt.Println("Email sent successfully!")
+		log.Println("Task carried out successfully!")
 	}
 }
 
@@ -147,16 +163,16 @@ func main() {
 
 	initConfig(*configPath, *cronSpec, *emailList)
 
-	executeTask() // run the task immediately for gettting feedback
+	executeTask() // run the task immediately for getting feedback
 
 	c := cron.New()
-	err := c.AddFunc(*cronSpec, executeTask)
+	_, err := c.AddFunc(viper.GetString("cron.schedule"), executeTask)
 	if err != nil {
-		fmt.Println("Error scheduling the task:", err)
+		log.Fatalf("Error scheduling the task: %s", err)
 		return
 	}
 
-	fmt.Println("Service started successfully. IP information will be fetched and emails sent according to the provided cron specification.")
+	log.Println("Service started successfully. IP information will be fetched and emails sent according to the provided cron specification.")
 	c.Start()
 
 	// Block the main thread from exiting to keep the scheduler running.

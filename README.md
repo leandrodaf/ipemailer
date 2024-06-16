@@ -38,7 +38,7 @@ Before running the application, you need to set up a few configurations:
    emails: "email1@example.com,email2@example.com"
    ```
 
-   Note: If you are using Gmail, you might need to generate an app-specific password.
+   Note: If you are using Gmail, you might need to generate an [app-specific password](https://myaccount.google.com/apppasswords).
 
 2. API Configuration: No API key is needed as the application uses the free version of IP-API. However, ensure you adhere to the IP-API usage terms.
 
