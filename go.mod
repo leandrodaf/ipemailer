@@ -4,7 +4,6 @@ go 1.22.3
 
 require (
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/robfig/cron v1.2.0
 	github.com/spf13/viper v1.19.0
 )
 
